@@ -426,6 +426,15 @@ async function generateExcelForObject(conn, objectApiName, config) {
 
       // 桁数の処理
       if (col.source === "length") {
+        // id、参照関係、選択リスト（複数含む）の場合は桁数を設定しない
+        if (
+          field.type === "id" ||
+          field.type === "reference" ||
+          field.type === "picklist" ||
+          field.type === "multipicklist"
+        ) {
+          return "";
+        }
         return field.length || field.precision || "";
       }
 
