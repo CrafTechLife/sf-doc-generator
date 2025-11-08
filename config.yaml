@@ -1,0 +1,25 @@
+# Salesforce設計書生成設定
+
+target:
+  objectApiName: Account
+
+columns:
+  - header: "項目API名"
+    source: "fullName"
+    width: 25
+    
+  - header: "項目ラベル"
+    source: "label"
+    width: 20
+    
+  - header: "データ型"
+    source: "type"
+    width: 15
+    
+  - header: "必須"
+    source: "required"
+    width: 8
+    
+  - header: "説明"
+    source: "description"
+    width: 40

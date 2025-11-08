@@ -1,0 +1,96 @@
+# Salesforce設計書自動生成ツール
+
+SalesforceオブジェクトのメタデータからExcel設計書を自動生成するNode.jsツールです。
+
+## 機能
+
+- Salesforceオブジェクトのメタデータを取得
+- オブジェクト定義シートと項目定義シートを含むExcelファイルを生成
+- カスタマイズ可能な列設定（YAML）
+- 日本語対応の設計書テンプレート
+
+## 必要要件
+
+- Node.js v14以上
+- Salesforceアカウント（ユーザー名、パスワード、セキュリティトークン）
+
+## インストール
+
+```bash
+npm install
+```
+
+## 設定
+
+### 1. 環境変数の設定
+
+`.env.example` をコピーして `.env` ファイルを作成してください。
+
+```bash
+cp .env.example .env
+```
+
+`.env` ファイルに以下の情報を設定します：
+
+```env
+SF_USERNAME=your-salesforce-username
+SF_PASSWORD=your-salesforce-password
+SF_SECURITY_TOKEN=your-security-token
+```
+
+### 2. 対象オブジェクトの設定
+
+`config.yaml` で対象オブジェクトと出力する列を設定します：
+
+```yaml
+target:
+  objectApiName: Account  # 対象オブジェクトのAPI名
+
+columns:
+  - header: "項目API名"
+    source: "fullName"
+    width: 25
+  - header: "項目ラベル"
+    source: "label"
+    width: 20
+  # 必要に応じて列を追加・編集
+```
+
+## 使い方
+
+```bash
+npm start
+```
+
+実行すると、`output/` フォルダに以下の形式でExcelファイルが生成されます：
+
+```
+output/Account_定義書_20250108.xlsx
+```
+
+## 出力内容
+
+生成されるExcelファイルには2つのシートが含まれます：
+
+### 1. オブジェクト定義シート
+- オブジェクトAPI名
+- オブジェクトラベル
+- 共有モデル
+- 各種設定（履歴管理、検索有効化など）
+- 項目数、リストビュー数などの統計情報
+
+### 2. 項目定義シート
+- 項目API名
+- 項目ラベル
+- データ型
+- 必須フラグ
+- 説明
+- その他、`config.yaml` で設定した列
+
+## ライセンス
+
+MIT
+
+## 作成者
+
+CrafTechLife

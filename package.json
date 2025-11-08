@@ -1,0 +1,29 @@
+{
+    "name": "sf-doc-generator",
+    "version": "1.0.0",
+    "description": "Salesforce設計書自動生成ツール",
+    "main": "index.js",
+    "scripts": {
+        "start": "node index.js",
+        "dev": "node index.js",
+        "lint": "eslint .",
+        "format": "prettier --write ."
+    },
+    "keywords": [
+        "salesforce",
+        "documentation",
+        "excel"
+    ],
+    "author": "CrafTechLife",
+    "license": "MIT",
+    "dependencies": {
+        "dotenv": "^16.3.1",
+        "exceljs": "^4.4.0",
+        "js-yaml": "^4.1.0",
+        "jsforce": "^2.0.0-beta.29"
+    },
+    "devDependencies": {
+        "eslint": "^8.52.0",
+        "prettier": "^3.0.3"
+    }
+}
