@@ -13,6 +13,8 @@ SalesforceオブジェクトのメタデータからExcel設計書を自動生�
 
 - Node.js v14以上
 - Salesforceアカウント（ユーザー名、パスワード、セキュリティトークン）
+- Python 3（SERENA MCP使用時）
+- uv（Python パッケージマネージャー、SERENA MCP使用時）
 
 ## インストール
 
@@ -86,6 +88,33 @@ output/Account_定義書_20250108.xlsx
 - 必須フラグ
 - 説明
 - その他、`config.yaml` で設定した列
+
+## SERENA MCP統合
+
+このプロジェクトは[SERENA MCP](https://github.com/oraios/serena)と統合されており、Claude Codeを使った高度なコード分析と編集機能を利用できます。
+
+### SERENA MCPとは
+
+SERENA MCPは、セマンティックコード検索と編集機能を提供するMCPサーバーです。以下の機能を提供します：
+
+- シンボルレベルのコード理解
+- 多言語サポート（TypeScript、Python、Goなど）
+- プロジェクト全体の高度な分析
+- トークン効率の向上
+
+### セットアップ
+
+1. devcontainerを再ビルド（uvが自動的にインストールされます）
+   ```bash
+   # VS Codeのコマンドパレット (Cmd/Ctrl+Shift+P) から
+   # "Dev Containers: Rebuild Container" を実行
+   ```
+
+2. Claude Codeが自動的に`.mcp.json`の設定を読み込みます
+
+### 設定ファイル
+
+[.mcp.json](.mcp.json) ファイルでSERENAの設定を管理しています。
 
 ## 開発
 

@@ -3,7 +3,7 @@
   "build": {
     "dockerfile": "Dockerfile"
   },
-  
+
   // VS Code設定
   "customizations": {
     "vscode": {
@@ -11,7 +11,8 @@
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode",
         "redhat.vscode-yaml",
-        "ms-azuretools.vscode-docker"
+        "ms-azuretools.vscode-docker",
+        "Anthropic.claude-code"
       ],
       "settings": {
         "editor.formatOnSave": true,
@@ -25,6 +26,9 @@
 
   // コンテナ起動時にインストール
   "postCreateCommand": "npm install",
+
+  // 環境変数ファイルの読み込み
+  "runArgs": ["--env-file", "${localWorkspaceFolder}/.env"],
 
   // 開発サーバーのポート転送（将来の拡張用）
   "forwardPorts": [],
