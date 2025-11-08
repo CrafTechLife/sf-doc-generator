@@ -4,12 +4,77 @@ const jsforce = require("jsforce");
 const yaml = require("js-yaml");
 const fs = require("fs"); // ファイル操作
 const path = require("path"); // パス操作
+const inquirer = require("inquirer");
 
 // 環境変数を.envファイルから読み込む
 require("dotenv").config();
 
 // オブジェクトラベルのキャッシュ（実行中にメモリ保持）
 let objectLabelCache = {};
+
+/**
+ * Salesforceから全オブジェクトリストを取得
+ * @param {Object} conn - Salesforce接続オブジェクト
+ * @returns {Array} オブジェクト情報の配列
+ */
+async function getAllObjects(conn) {
+  console.log("📋 利用可能なオブジェクト一覧を取得中...");
+
+  const describeGlobal = await conn.describeGlobal();
+
+  // 標準・カスタムオブジェクトを取得し、ラベル順にソート
+  const objects = describeGlobal.sobjects
+    .filter(obj => {
+      // 非表示オブジェクトや履歴・共有オブジェクトなどを除外
+      return !obj.name.endsWith('__History') &&
+             !obj.name.endsWith('__Share') &&
+             !obj.name.endsWith('__Feed') &&
+             !obj.name.endsWith('__Tag') &&
+             obj.queryable; // クエリ可能なもののみ
+    })
+    .map(obj => ({
+      name: obj.name,
+      label: obj.label,
+      custom: obj.custom,
+      displayName: `${obj.label} (${obj.name})`
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'ja'));
+
+  console.log(`✓ ${objects.length}件のオブジェクトが見つかりました\n`);
+
+  return objects;
+}
+
+/**
+ * 対話式でオブジェクトを選択
+ * @param {Array} objects - オブジェクト情報の配列
+ * @returns {Array} 選択されたオブジェクトAPI名の配列
+ */
+async function selectObjectsInteractively(objects) {
+  console.log("📝 処理対象のオブジェクトを選択してください（スペースで選択、Enterで確定）\n");
+
+  const answers = await inquirer.prompt([
+    {
+      type: 'checkbox',
+      name: 'selectedObjects',
+      message: 'オブジェクトを選択:',
+      choices: objects.map(obj => ({
+        name: obj.displayName,
+        value: obj.name,
+        checked: false
+      })),
+      pageSize: 15,
+      validate: (answer) => {
+        if (answer.length < 1) {
+          return '少なくとも1つのオブジェクトを選択してください';
+        }
+        return true;
+      }
+    }
+  ]);
+
+  return answers.selectedObjects;
+}
 
 /**
  * 参照先オブジェクトのラベルを取得してキャッシュする
@@ -137,56 +202,28 @@ function getJapaneseFieldType(field) {
 }
 
 /**
- * メイン処理
- * async/await を使って非同期処理を同期的に書く
+ * 単一オブジェクトのExcelファイルを生成
+ * @param {Object} conn - Salesforce接続オブジェクト
+ * @param {string} objectApiName - オブジェクトAPI名
+ * @param {Object} config - 設定オブジェクト
  */
-async function generateDoc() {
-  try {
-    console.log("📋 Salesforce設計書生成開始...\n");
+async function generateExcelForObject(conn, objectApiName, config) {
+  console.log(`\n📥 ${objectApiName} のメタデータ取得中...`);
 
-    // ===== 1. 設定ファイル読み込み =====
-    console.log("⚙️  設定ファイル読み込み中...");
-    const configPath = path.join(__dirname, "config.yaml");
-    const configFile = fs.readFileSync(configPath, "utf8");
-    const config = yaml.load(configFile);
-    console.log(`✓ 対象オブジェクト: ${config.target.objectApiName}\n`);
+  // Describe APIを使用して全項目（標準項目含む）を取得
+  const describeResult = await conn.sobject(objectApiName).describe();
 
-    // ===== 2. Salesforce接続 =====
-    console.log("🔌 Salesforce接続中...");
-    const conn = new jsforce.Connection({
-      loginUrl: "https://login.salesforce.com", // Sandboxの場合は test.salesforce.com
-    });
+  console.log(`✓ 項目数: ${describeResult.fields.length}件`);
 
-    await conn.login(
-      process.env.SF_USERNAME,
-      process.env.SF_PASSWORD + process.env.SF_SECURITY_TOKEN
-    );
-    console.log("✓ 接続成功\n");
+  // 参照先オブジェクトのラベルをキャッシュ
+  await cacheReferenceObjectLabels(conn, describeResult.fields);
 
-    // ===== 3. メタデータ取得 =====
-    console.log("📥 メタデータ取得中...");
+  console.log(`📊 ${objectApiName} のExcel生成中...`);
 
-    // Describe APIを使用して全項目（標準項目含む）を取得
-    const describeResult = await conn.sobject(config.target.objectApiName).describe();
-
-    // デバッグ用: メタデータをJSONで保存
-    fs.writeFileSync(
-      "./debug-metadata.json",
-      JSON.stringify(describeResult, null, 2)
-    );
-
-    console.log(`✓ 項目数: ${describeResult.fields.length}件\n`);
-
-    // 参照先オブジェクトのラベルをキャッシュ
-    await cacheReferenceObjectLabels(conn, describeResult.fields);
-
-    // ===== 4. Excel生成 =====
-    console.log("📊 Excel生成中...");
-
-    // Workbook作成
-    const workbook = new ExcelJS.Workbook();
-    workbook.creator = "SF Doc Generator";
-    workbook.created = new Date();
+  // Workbook作成
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "SF Doc Generator";
+  workbook.created = new Date();
 
     // --- オブジェクト定義シート作成 ---
     const objDefSheet = workbook.addWorksheet("オブジェクト定義");
@@ -370,22 +407,81 @@ async function generateDoc() {
       to: { row: 1, column: config.columns.length },
     };
 
-    // ===== 5. ファイル保存 =====
-    const outputDir = path.join(__dirname, "output");
-    if (!fs.existsSync(outputDir)) {
-      fs.mkdirSync(outputDir);
+  // ===== ファイル保存 =====
+  const outputDir = path.join(__dirname, "output");
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir);
+  }
+
+  const outputPath = path.join(
+    outputDir,
+    `${objectApiName}_定義書_${getDateString()}.xlsx`
+  );
+
+  await workbook.xlsx.writeFile(outputPath);
+
+  console.log(`✓ ${objectApiName} のExcel生成完了`);
+  console.log(`📁 出力先: ${outputPath}`);
+
+  return outputPath;
+}
+
+/**
+ * メイン処理
+ * async/await を使って非同期処理を同期的に書く
+ */
+async function generateDoc() {
+  try {
+    console.log("📋 Salesforce設計書生成開始...\n");
+
+    // ===== 1. 設定ファイル読み込み =====
+    console.log("⚙️  設定ファイル読み込み中...");
+    const configPath = path.join(__dirname, "config.yaml");
+    const configFile = fs.readFileSync(configPath, "utf8");
+    const config = yaml.load(configFile);
+
+    // ===== 2. Salesforce接続 =====
+    console.log("🔌 Salesforce接続中...");
+    const conn = new jsforce.Connection({
+      loginUrl: "https://login.salesforce.com", // Sandboxの場合は test.salesforce.com
+    });
+
+    await conn.login(
+      process.env.SF_USERNAME,
+      process.env.SF_PASSWORD + process.env.SF_SECURITY_TOKEN
+    );
+    console.log("✓ 接続成功\n");
+
+    // ===== 3. 対象オブジェクトの決定 =====
+    let targetObjects = [];
+
+    if (config.target.objectApiNames && config.target.objectApiNames.length > 0) {
+      // config.yamlで指定されている場合
+      targetObjects = config.target.objectApiNames;
+      console.log(`✓ 対象オブジェクト（config.yamlから）: ${targetObjects.join(", ")}\n`);
+    } else {
+      // 対話式で選択
+      const allObjects = await getAllObjects(conn);
+      targetObjects = await selectObjectsInteractively(allObjects);
+      console.log(`\n✓ ${targetObjects.length}個のオブジェクトを選択しました\n`);
     }
 
-    const outputPath = path.join(
-      outputDir,
-      `${config.target.objectApiName}_定義書_${getDateString()}.xlsx`
-    );
+    // ===== 4. 各オブジェクトのExcel生成 =====
+    const outputPaths = [];
 
-    await workbook.xlsx.writeFile(outputPath);
+    for (const objectApiName of targetObjects) {
+      // オブジェクトラベルキャッシュをリセット（オブジェクトごとに）
+      objectLabelCache = {};
 
-    console.log("✓ Excel生成完了\n");
-    console.log(`📁 出力先: ${outputPath}`);
-    console.log("\n✨ 処理完了！");
+      const outputPath = await generateExcelForObject(conn, objectApiName, config);
+      outputPaths.push(outputPath);
+    }
+
+    // ===== 5. 完了メッセージ =====
+    console.log("\n✨ すべての処理が完了しました！");
+    console.log(`\n📊 生成されたファイル: ${outputPaths.length}件`);
+    outputPaths.forEach(p => console.log(`   - ${p}`));
+
   } catch (error) {
     console.error("❌ エラーが発生しました:", error.message);
     console.error(error);
