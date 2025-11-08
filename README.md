@@ -87,6 +87,49 @@ output/Account_定義書_20250108.xlsx
 - 説明
 - その他、`config.yaml` で設定した列
 
+## 開発
+
+### ブランチ戦略
+
+このプロジェクトではGitHub Flowを採用しています：
+
+- `main` - 本番環境用（常にデプロイ可能な状態）
+- `develop` - 開発統合ブランチ（開発はここから派生）
+- `feature/*` - 機能開発ブランチ（例: `feature/add-validation-rules`）
+
+### 開発フロー
+
+1. `develop` ブランチから機能ブランチを作成
+   ```bash
+   git checkout develop
+   git pull origin develop
+   git checkout -b feature/your-feature-name
+   ```
+
+2. 開発・コミット
+   ```bash
+   git add .
+   git commit -m "feat: 機能の説明"
+   ```
+
+3. プルリクエスト作成
+   - `feature/*` → `develop` へのPRを作成
+   - レビュー後にマージ
+
+4. リリース時
+   - `develop` → `main` へのPRを作成
+   - マージ後にタグを作成
+
+### ブランチ保護推奨設定（GitHub Settings）
+
+#### `main` ブランチ
+- Require a pull request before merging
+- Require approvals (1人以上)
+- Do not allow bypassing the above settings
+
+#### `develop` ブランチ
+- Require a pull request before merging（推奨）
+
 ## ライセンス
 
 MIT
