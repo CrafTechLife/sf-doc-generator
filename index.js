@@ -69,22 +69,25 @@ async function generateDoc() {
     const headers = config.columns.map((col) => col.header);
     const headerRow = sheet.addRow(headers);
 
-    // ヘッダーのスタイル
-    headerRow.font = {
-      bold: true,
-      color: { argb: "FFFFFFFF" }, // 白文字
-      size: 11,
-      name: "Meiryo UI",
-    };
-    headerRow.fill = {
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: "FF4472C4" }, // 青背景
-    };
-    headerRow.alignment = {
-      horizontal: "center",
-      vertical: "middle",
-    };
+    // ヘッダーのスタイル（ヘッダ文字列がある箇所のみ塗りつぶし）
+    config.columns.forEach((_, idx) => {
+      const cell = headerRow.getCell(idx + 1);
+      cell.font = {
+        bold: true,
+        color: { argb: "FFFFFFFF" }, // 白文字
+        size: config.font?.headerSize || 11,
+        name: config.font?.name || "Meiryo UI",
+      };
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FF4472C4" }, // 青背景
+      };
+      cell.alignment = {
+        horizontal: "center",
+        vertical: "middle",
+      };
+    });
     headerRow.height = 20;
 
     // 列幅設定
@@ -164,16 +167,36 @@ async function generateDoc() {
 
       const addedRow = sheet.addRow(row);
 
-      // 選択リスト値の列は折り返し表示
-      const picklistColIndex = config.columns.findIndex(
-        (col) => col.source === "picklistValues"
-      );
-      if (picklistColIndex >= 0) {
-        addedRow.getCell(picklistColIndex + 1).alignment = {
-          wrapText: true,
-          vertical: "top",
+      // 各セルのスタイル設定
+      config.columns.forEach((col, idx) => {
+        const cell = addedRow.getCell(idx + 1);
+
+        // フォント設定
+        cell.font = {
+          name: config.font?.name || "Meiryo UI",
+          size: config.font?.size || 10,
         };
-      }
+
+        // 選択リスト値の列は折り返し表示
+        if (col.source === "picklistValues") {
+          cell.alignment = {
+            wrapText: true,
+            vertical: "top",
+          };
+        }
+
+        // 必須、外部ID、履歴管理の列は中央揃え
+        if (
+          col.source === "required" ||
+          col.source === "externalId" ||
+          col.source === "trackFeedHistory"
+        ) {
+          cell.alignment = {
+            horizontal: "center",
+            vertical: "middle",
+          };
+        }
+      });
     });
 
     // 全データ行にボーダー追加（縦線・横線両方）
@@ -189,8 +212,10 @@ async function generateDoc() {
       }
     }
 
-    // ヘッダー行を固定（スクロール時も見える）＆目盛り線を非表示
-    sheet.views = [{ state: "frozen", ySplit: 1, showGridLines: false }];
+    // ヘッダー行と先頭2列を固定（スクロール時も見える）＆目盛り線を非表示
+    sheet.views = [
+      { state: "frozen", ySplit: 1, xSplit: 2, showGridLines: false },
+    ];
 
     // オートフィルター有効化
     sheet.autoFilter = {

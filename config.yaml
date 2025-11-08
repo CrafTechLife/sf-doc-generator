@@ -9,6 +9,12 @@ target:
 # fullName: fullNameのみ表示
 picklistFormat: both
 
+# フォント設定
+font:
+  name: "Meiryo UI"
+  size: 10
+  headerSize: 11
+
 columns:
   - header: "NO"
     source: "rowNumber"
