@@ -1,7 +1,9 @@
 # Salesforce設計書生成設定
 
+# 対象オブジェクトの指定
+# 空の配列にすると、実行時に対話式で選択できます
 target:
-  objectApiName: Account
+  objectApiNames: []  # 例: [Account, Contact, Opportunity]
 
 # 選択リスト値の表示形式
 # both: label（fullName）形式で両方表示
