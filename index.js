@@ -141,7 +141,19 @@ async function generateDoc() {
 
         let value = field[col.source];
 
-        // boolean を ○/- に変換
+        // 特定のboolean項目は trueの場合のみ○を表示、それ以外は空白
+        if (
+          col.source === "required" ||
+          col.source === "externalId" ||
+          col.source === "trackFeedHistory"
+        ) {
+          if (value === true) {
+            return "○";
+          }
+          return "";
+        }
+
+        // その他のboolean を ○/- に変換
         if (typeof value === "boolean") {
           return value ? "○" : "-";
         }
