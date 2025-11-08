@@ -314,22 +314,28 @@ function createObjectDefinitionSheet(sheet, metadata) {
   ];
 
   // ヘッダー行追加
-  const headerRow = sheet.addRow(["項目名", "値"]);
-  headerRow.font = {
-    bold: true,
-    color: { argb: "FFFFFFFF" },
-    size: 11,
-    name: "Meiryo UI",
-  };
-  headerRow.fill = {
-    type: "pattern",
-    pattern: "solid",
-    fgColor: { argb: "FF70AD47" }, // 緑背景
-  };
-  headerRow.alignment = {
-    horizontal: "center",
-    vertical: "middle",
-  };
+  const headers = ["項目名", "値"];
+  const headerRow = sheet.addRow(headers);
+
+  // ヘッダーのスタイル（ヘッダ文字列がある箇所のみ塗りつぶし）
+  headers.forEach((_, idx) => {
+    const cell = headerRow.getCell(idx + 1);
+    cell.font = {
+      bold: true,
+      color: { argb: "FFFFFFFF" },
+      size: 11,
+      name: "Meiryo UI",
+    };
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF70AD47" }, // 緑背景
+    };
+    cell.alignment = {
+      horizontal: "center",
+      vertical: "middle",
+    };
+  });
   headerRow.height = 20;
 
   // データ行追加
@@ -345,15 +351,30 @@ function createObjectDefinitionSheet(sheet, metadata) {
       pattern: "solid",
       fgColor: { argb: "FFE2EFDA" }, // 薄い緑
     };
+  });
 
-    // ボーダー追加
-    row.border = {
+  // ヘッダー行にボーダー追加
+  for (let j = 1; j <= headers.length; j++) {
+    headerRow.getCell(j).border = {
       top: { style: "thin", color: { argb: "FFD9D9D9" } },
       bottom: { style: "thin", color: { argb: "FFD9D9D9" } },
       left: { style: "thin", color: { argb: "FFD9D9D9" } },
       right: { style: "thin", color: { argb: "FFD9D9D9" } },
     };
-  });
+  }
+
+  // 全データ行にボーダー追加
+  for (let i = 2; i <= sheet.rowCount; i++) {
+    const row = sheet.getRow(i);
+    for (let j = 1; j <= headers.length; j++) {
+      row.getCell(j).border = {
+        top: { style: "thin", color: { argb: "FFD9D9D9" } },
+        bottom: { style: "thin", color: { argb: "FFD9D9D9" } },
+        left: { style: "thin", color: { argb: "FFD9D9D9" } },
+        right: { style: "thin", color: { argb: "FFD9D9D9" } },
+      };
+    }
+  }
 
   // ヘッダー行を固定＆目盛り線を非表示
   sheet.views = [{ state: "frozen", ySplit: 1, showGridLines: false }];
