@@ -424,6 +424,15 @@ async function generateExcelForObject(conn, objectApiName, config) {
         return "";
       }
 
+      // 数式の処理
+      if (col.source === "formula") {
+        // 数式項目の場合、calculatedFormulaに数式が格納されている
+        if (field.calculated && field.calculatedFormula) {
+          return field.calculatedFormula;
+        }
+        return "";
+      }
+
       // 桁数の処理
       if (col.source === "length") {
         // id、参照関係、選択リスト（複数含む）、パーセント、メールの場合は桁数を設定しない
@@ -480,8 +489,8 @@ async function generateExcelForObject(conn, objectApiName, config) {
         size: config.font?.size || 10,
       };
 
-      // 選択リスト値の列は折り返し表示
-      if (col.source === "picklistValues") {
+      // 選択リスト値と数式の列は折り返し表示
+      if (col.source === "picklistValues" || col.source === "formula") {
         cell.alignment = {
           wrapText: true,
           vertical: "top",
