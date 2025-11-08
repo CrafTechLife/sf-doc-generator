@@ -246,7 +246,8 @@ function getJapaneseFieldType(field) {
   if (type === "double" || type === "int") {
     const precision = field.precision || 18;
     const scale = field.scale || 0;
-    return `数値 (${scale}, ${precision})`;
+    const integerDigits = precision - scale;
+    return `数値 (${integerDigits}, ${scale})`;
   }
 
   // 地理位置情報
