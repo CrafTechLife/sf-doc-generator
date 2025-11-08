@@ -93,8 +93,52 @@ async function generateDoc() {
     });
 
     // --- データ行追加 ---
-    metadata.fields.forEach((field) => {
+    metadata.fields.forEach((field, index) => {
       const row = config.columns.map((col) => {
+        // 行番号の処理
+        if (col.source === "rowNumber") {
+          return index + 1;
+        }
+
+        // ラベルの処理（labelがない場合はfullNameを使用）
+        if (col.source === "label") {
+          return field.label || field.fullName || "";
+        }
+
+        // 項目タイプの判定
+        if (col.source === "fieldType") {
+          return field.fullName.endsWith("__c") ? "カスタム" : "標準";
+        }
+
+        // 選択リスト値の処理
+        if (col.source === "picklistValues") {
+          if (field.type === "Picklist" || field.type === "MultiselectPicklist") {
+            if (field.valueSet && field.valueSet.valueSetDefinition) {
+              const values = field.valueSet.valueSetDefinition.value;
+              if (values && values.length > 0) {
+                return values
+                  .map((v) => {
+                    const label = v.label || v.fullName;
+                    const fullName = v.fullName;
+
+                    // 表示形式に応じて出力を切り替え
+                    switch (config.picklistFormat) {
+                      case "label":
+                        return label;
+                      case "fullName":
+                        return fullName;
+                      case "both":
+                      default:
+                        return `${label}（${fullName}）`;
+                    }
+                  })
+                  .join("\n");
+              }
+            }
+          }
+          return "";
+        }
+
         let value = field[col.source];
 
         // boolean を ○/- に変換
@@ -106,18 +150,35 @@ async function generateDoc() {
         return value || "";
       });
 
-      sheet.addRow(row);
+      const addedRow = sheet.addRow(row);
+
+      // 選択リスト値の列は折り返し表示
+      const picklistColIndex = config.columns.findIndex(
+        (col) => col.source === "picklistValues"
+      );
+      if (picklistColIndex >= 0) {
+        addedRow.getCell(picklistColIndex + 1).alignment = {
+          wrapText: true,
+          vertical: "top",
+        };
+      }
     });
 
-    // 全データ行にボーダー追加
+    // 全データ行にボーダー追加（縦線・横線両方）
     for (let i = 2; i <= sheet.rowCount; i++) {
-      sheet.getRow(i).border = {
-        bottom: { style: "thin", color: { argb: "FFD9D9D9" } },
-      };
+      const row = sheet.getRow(i);
+      for (let j = 1; j <= config.columns.length; j++) {
+        row.getCell(j).border = {
+          top: { style: "thin", color: { argb: "FFD9D9D9" } },
+          bottom: { style: "thin", color: { argb: "FFD9D9D9" } },
+          left: { style: "thin", color: { argb: "FFD9D9D9" } },
+          right: { style: "thin", color: { argb: "FFD9D9D9" } },
+        };
+      }
     }
 
-    // ヘッダー行を固定（スクロール時も見える）
-    sheet.views = [{ state: "frozen", ySplit: 1 }];
+    // ヘッダー行を固定（スクロール時も見える）＆目盛り線を非表示
+    sheet.views = [{ state: "frozen", ySplit: 1, showGridLines: false }];
 
     // オートフィルター有効化
     sheet.autoFilter = {
@@ -257,8 +318,8 @@ function createObjectDefinitionSheet(sheet, metadata) {
     };
   });
 
-  // ヘッダー行を固定
-  sheet.views = [{ state: "frozen", ySplit: 1 }];
+  // ヘッダー行を固定＆目盛り線を非表示
+  sheet.views = [{ state: "frozen", ySplit: 1, showGridLines: false }];
 }
 
 /**

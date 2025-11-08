@@ -3,23 +3,65 @@
 target:
   objectApiName: Account
 
+# 選択リスト値の表示形式
+# both: label（fullName）形式で両方表示
+# label: labelのみ表示
+# fullName: fullNameのみ表示
+picklistFormat: both
+
 columns:
-  - header: "項目API名"
+  - header: "NO"
+    source: "rowNumber"
+    width: 8
+
+  - header: "項目の表示ラベル"
+    source: "label"
+    width: 25
+
+  - header: "API 参照名"
     source: "fullName"
     width: 25
-    
-  - header: "項目ラベル"
-    source: "label"
-    width: 20
-    
+
   - header: "データ型"
     source: "type"
     width: 15
-    
+
+  - header: "桁数"
+    source: "length"
+    width: 10
+
+  - header: "項目タイプ"
+    source: "fieldType"
+    width: 15
+
   - header: "必須"
     source: "required"
     width: 8
-    
+
+  - header: "デフォルト値"
+    source: "defaultValue"
+    width: 20
+
+  - header: "選択リスト値"
+    source: "picklistValues"
+    width: 30
+
+  - header: "数式"
+    source: "formula"
+    width: 40
+
+  - header: "外部 ID"
+    source: "externalId"
+    width: 10
+
+  - header: "履歴管理"
+    source: "trackHistory"
+    width: 10
+
   - header: "説明"
     source: "description"
+    width: 40
+
+  - header: "ヘルプ内容"
+    source: "inlineHelpText"
     width: 40
