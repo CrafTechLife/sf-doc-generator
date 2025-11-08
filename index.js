@@ -37,18 +37,17 @@ async function generateDoc() {
 
     // ===== 3. メタデータ取得 =====
     console.log("📥 メタデータ取得中...");
-    const metadata = await conn.metadata.read(
-      "CustomObject",
-      config.target.objectApiName
-    );
+
+    // Describe APIを使用して全項目（標準項目含む）を取得
+    const describeResult = await conn.sobject(config.target.objectApiName).describe();
 
     // デバッグ用: メタデータをJSONで保存
     fs.writeFileSync(
       "./debug-metadata.json",
-      JSON.stringify(metadata, null, 2)
+      JSON.stringify(describeResult, null, 2)
     );
 
-    console.log(`✓ 項目数: ${metadata.fields.length}件\n`);
+    console.log(`✓ 項目数: ${describeResult.fields.length}件\n`);
 
     // ===== 4. Excel生成 =====
     console.log("📊 Excel生成中...");
@@ -60,7 +59,7 @@ async function generateDoc() {
 
     // --- オブジェクト定義シート作成 ---
     const objDefSheet = workbook.addWorksheet("オブジェクト定義");
-    createObjectDefinitionSheet(objDefSheet, metadata);
+    createObjectDefinitionSheet(objDefSheet, describeResult);
 
     // --- 項目定義シート作成 ---
     const sheet = workbook.addWorksheet("項目定義");
@@ -96,50 +95,58 @@ async function generateDoc() {
     });
 
     // --- データ行追加 ---
-    metadata.fields.forEach((field, index) => {
+    describeResult.fields.forEach((field, index) => {
       const row = config.columns.map((col) => {
         // 行番号の処理
         if (col.source === "rowNumber") {
           return index + 1;
         }
 
-        // ラベルの処理（labelがない場合はfullNameを使用）
+        // ラベルの処理（labelがない場合はnameを使用）
         if (col.source === "label") {
-          return field.label || field.fullName || "";
+          return field.label || field.name || "";
+        }
+
+        // API参照名の処理
+        if (col.source === "fullName") {
+          return field.name || "";
         }
 
         // 項目タイプの判定
         if (col.source === "fieldType") {
-          return field.fullName.endsWith("__c") ? "カスタム" : "標準";
+          return field.custom ? "カスタム" : "標準";
         }
 
         // 選択リスト値の処理
         if (col.source === "picklistValues") {
-          if (field.type === "Picklist" || field.type === "MultiselectPicklist") {
-            if (field.valueSet && field.valueSet.valueSetDefinition) {
-              const values = field.valueSet.valueSetDefinition.value;
-              if (values && values.length > 0) {
-                return values
-                  .map((v) => {
-                    const label = v.label || v.fullName;
-                    const fullName = v.fullName;
+          if (field.type === "picklist" || field.type === "multipicklist") {
+            if (field.picklistValues && field.picklistValues.length > 0) {
+              return field.picklistValues
+                .map((v) => {
+                  const label = v.label || v.value;
+                  const value = v.value;
 
-                    // 表示形式に応じて出力を切り替え
-                    switch (config.picklistFormat) {
-                      case "label":
-                        return label;
-                      case "fullName":
-                        return fullName;
-                      case "both":
-                      default:
-                        return `${label}（${fullName}）`;
-                    }
-                  })
-                  .join("\n");
-              }
+                  // 表示形式に応じて出力を切り替え
+                  switch (config.picklistFormat) {
+                    case "label":
+                      return label;
+                    case "fullName":
+                      return value;
+                    case "both":
+                    default:
+                      // labelとvalueが同じ場合は重複表示を避ける
+                      return label === value ? label : `${label}（${value}）`;
+                  }
+                })
+                .join(";");
             }
           }
           return "";
+        }
+
+        // 桁数の処理
+        if (col.source === "length") {
+          return field.length || field.precision || "";
         }
 
         let value = field[col.source];
@@ -148,8 +155,12 @@ async function generateDoc() {
         if (
           col.source === "required" ||
           col.source === "externalId" ||
-          col.source === "trackFeedHistory"
+          col.source === "trackHistory"
         ) {
+          // nillableがfalseの場合は必須
+          if (col.source === "required") {
+            return field.nillable === false ? "○" : "";
+          }
           if (value === true) {
             return "○";
           }
@@ -189,7 +200,7 @@ async function generateDoc() {
         if (
           col.source === "required" ||
           col.source === "externalId" ||
-          col.source === "trackFeedHistory"
+          col.source === "trackHistory"
         ) {
           cell.alignment = {
             horizontal: "center",
@@ -249,67 +260,50 @@ async function generateDoc() {
 /**
  * オブジェクト定義シート作成
  * @param {ExcelJS.Worksheet} sheet - ワークシート
- * @param {Object} metadata - オブジェクトメタデータ
+ * @param {Object} describeResult - Describe APIのレスポンス
  */
-function createObjectDefinitionSheet(sheet, metadata) {
+function createObjectDefinitionSheet(sheet, describeResult) {
   // 列幅設定
   sheet.getColumn(1).width = 30; // 項目名
   sheet.getColumn(2).width = 50; // 値
 
   // データ定義（表示順）
   const objectInfo = [
-    { label: "オブジェクトAPI名", value: metadata.fullName || "" },
-    { label: "オブジェクトラベル", value: metadata.label || "" },
-    { label: "複数形ラベル", value: metadata.pluralLabel || "" },
-    { label: "共有モデル", value: metadata.sharingModel || "" },
+    { label: "オブジェクトAPI名", value: describeResult.name || "" },
+    { label: "オブジェクトラベル", value: describeResult.label || "" },
+    { label: "複数形ラベル", value: describeResult.labelPlural || "" },
     {
-      label: "外部共有モデル",
-      value: metadata.externalSharingModel || "",
+      label: "作成可能",
+      value: describeResult.createable ? "○" : "-",
+    },
+    {
+      label: "更新可能",
+      value: describeResult.updateable ? "○" : "-",
+    },
+    {
+      label: "削除可能",
+      value: describeResult.deletable ? "○" : "-",
+    },
+    {
+      label: "検索可能",
+      value: describeResult.searchable ? "○" : "-",
+    },
+    {
+      label: "取得可能",
+      value: describeResult.queryable ? "○" : "-",
+    },
+    {
+      label: "カスタムオブジェクト",
+      value: describeResult.custom ? "○" : "-",
     },
     {
       label: "フィード有効化",
-      value: metadata.enableFeeds ? "○" : "-",
+      value: describeResult.feedEnabled ? "○" : "-",
     },
-    {
-      label: "履歴管理",
-      value: metadata.enableHistory ? "○" : "-",
-    },
-    {
-      label: "検索強化",
-      value: metadata.enableEnhancedLookup ? "○" : "-",
-    },
-    {
-      label: "レポート有効化",
-      value: metadata.enableReports ? "○" : "-",
-    },
-    {
-      label: "活動有効化",
-      value: metadata.enableActivities ? "○" : "-",
-    },
-    {
-      label: "一括API有効化",
-      value: metadata.enableBulkApi ? "○" : "-",
-    },
-    {
-      label: "ストリーミングAPI有効化",
-      value: metadata.enableStreamingApi ? "○" : "-",
-    },
-    {
-      label: "検索有効化",
-      value: metadata.enableSearch ? "○" : "-",
-    },
-    { label: "項目数", value: metadata.fields ? metadata.fields.length : 0 },
-    {
-      label: "リストビュー数",
-      value: metadata.listViews ? metadata.listViews.length : 0,
-    },
+    { label: "項目数", value: describeResult.fields ? describeResult.fields.length : 0 },
     {
       label: "レコードタイプ数",
-      value: metadata.recordTypes ? metadata.recordTypes.length : 0,
-    },
-    {
-      label: "入力規則数",
-      value: metadata.validationRules ? metadata.validationRules.length : 0,
+      value: describeResult.recordTypeInfos ? describeResult.recordTypeInfos.length : 0,
     },
   ];
 
