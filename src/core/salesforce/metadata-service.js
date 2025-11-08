@@ -79,10 +79,16 @@ async function getFieldMetadata(conn, objectApiName, fields) {
           });
         } catch (error) {
           // 一部のフィールド（地理位置情報の緯度・経度など）は取得できないことがある
-          console.warn(
-            `⚠️  CustomFieldメタデータのバッチ取得に失敗: ${error.message}`
+          // このエラーは想定内で、処理は正常に継続される
+          console.log(
+            `ℹ️  一部のカスタム項目メタデータを取得できませんでした（想定内の動作）`
           );
-          console.warn(`   対象フィールド: ${batch.join(", ")}`);
+          console.log(`   理由: ${error.message}`);
+          console.log(`   対象: ${batch.join(", ")}`);
+          console.log(
+            `   ※地理位置情報の緯度・経度フィールドなどは取得できません`
+          );
+          console.log(`   ※履歴管理・説明は空欄で出力されます\n`);
         }
       }
 
