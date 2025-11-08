@@ -28,21 +28,23 @@ async function getAllObjects(conn) {
 
   // 標準・カスタムオブジェクトを取得し、ラベル順にソート
   const objects = describeGlobal.sobjects
-    .filter(obj => {
+    .filter((obj) => {
       // 非表示オブジェクトや履歴・共有オブジェクトなどを除外
-      return !obj.name.endsWith('__History') &&
-             !obj.name.endsWith('__Share') &&
-             !obj.name.endsWith('__Feed') &&
-             !obj.name.endsWith('__Tag') &&
-             obj.queryable; // クエリ可能なもののみ
+      return (
+        !obj.name.endsWith("__History") &&
+        !obj.name.endsWith("__Share") &&
+        !obj.name.endsWith("__Feed") &&
+        !obj.name.endsWith("__Tag") &&
+        obj.queryable
+      ); // クエリ可能なもののみ
     })
-    .map(obj => ({
+    .map((obj) => ({
       name: obj.name,
       label: obj.label,
       custom: obj.custom,
-      displayName: `${obj.label} (${obj.name})`
+      displayName: `${obj.label} (${obj.name})`,
     }))
-    .sort((a, b) => a.label.localeCompare(b.label, 'ja'));
+    .sort((a, b) => a.label.localeCompare(b.label, "ja"));
 
   console.log(`✓ ${objects.length}件のオブジェクトが見つかりました\n`);
 
@@ -60,24 +62,24 @@ async function selectObjectsInteractively(objects) {
   // ステップ1: カスタム/標準/すべてのフィルタ選択
   const filterAnswer = await inquirer.prompt([
     {
-      type: 'list',
-      name: 'filter',
-      message: 'オブジェクトの種類でフィルタ:',
+      type: "list",
+      name: "filter",
+      message: "オブジェクトの種類でフィルタ:",
       choices: [
-        { name: 'すべてのオブジェクト', value: 'all' },
-        { name: 'カスタムオブジェクトのみ', value: 'custom' },
-        { name: '標準オブジェクトのみ', value: 'standard' }
+        { name: "すべてのオブジェクト", value: "all" },
+        { name: "カスタムオブジェクトのみ", value: "custom" },
+        { name: "標準オブジェクトのみ", value: "standard" },
       ],
-      default: 'all'
-    }
+      default: "all",
+    },
   ]);
 
   // フィルタ適用
   let filteredObjects = objects;
-  if (filterAnswer.filter === 'custom') {
-    filteredObjects = objects.filter(obj => obj.custom);
-  } else if (filterAnswer.filter === 'standard') {
-    filteredObjects = objects.filter(obj => !obj.custom);
+  if (filterAnswer.filter === "custom") {
+    filteredObjects = objects.filter((obj) => obj.custom);
+  } else if (filterAnswer.filter === "standard") {
+    filteredObjects = objects.filter((obj) => !obj.custom);
   }
 
   console.log(`\n✓ ${filteredObjects.length}件のオブジェクトが対象です\n`);
@@ -86,26 +88,30 @@ async function selectObjectsInteractively(objects) {
   const selectedObjects = [];
 
   // 検索関数
-  const searchObjects = (answers, input = '') => {
+  const searchObjects = (answers, input = "") => {
     return new Promise((resolve) => {
-      const searchTerm = (input || '').toLowerCase();
-      const filtered = filteredObjects.filter(obj => {
+      const searchTerm = (input || "").toLowerCase();
+      const filtered = filteredObjects.filter((obj) => {
         const displayName = obj.displayName.toLowerCase();
         const name = obj.name.toLowerCase();
         const label = obj.label.toLowerCase();
-        return displayName.includes(searchTerm) ||
-               name.includes(searchTerm) ||
-               label.includes(searchTerm);
+        return (
+          displayName.includes(searchTerm) ||
+          name.includes(searchTerm) ||
+          label.includes(searchTerm)
+        );
       });
 
       const choices = [
-        new inquirer.Separator('=== 選択を完了する場合は以下を選択 ==='),
-        { name: '✅ 選択完了（これまでの選択を確定）', value: '__DONE__' },
-        new inquirer.Separator(`=== オブジェクト一覧 (${filtered.length}件) ===`),
-        ...filtered.map(obj => ({
-          name: `${obj.displayName}${selectedObjects.includes(obj.name) ? ' ✓' : ''}`,
-          value: obj.name
-        }))
+        new inquirer.Separator("=== 選択を完了する場合は以下を選択 ==="),
+        { name: "✅ 選択完了（これまでの選択を確定）", value: "__DONE__" },
+        new inquirer.Separator(
+          `=== オブジェクト一覧 (${filtered.length}件) ===`
+        ),
+        ...filtered.map((obj) => ({
+          name: `${obj.displayName}${selectedObjects.includes(obj.name) ? " ✓" : ""}`,
+          value: obj.name,
+        })),
       ];
 
       resolve(choices);
@@ -116,23 +122,23 @@ async function selectObjectsInteractively(objects) {
   while (true) {
     console.log(`\n現在の選択: ${selectedObjects.length}個`);
     if (selectedObjects.length > 0) {
-      console.log(`  ${selectedObjects.join(', ')}`);
+      console.log(`  ${selectedObjects.join(", ")}`);
     }
 
     const answer = await inquirer.prompt([
       {
-        type: 'autocomplete',
-        name: 'object',
-        message: 'オブジェクトを検索して選択（入力で絞り込み）:',
+        type: "autocomplete",
+        name: "object",
+        message: "オブジェクトを検索して選択（入力で絞り込み）:",
         source: searchObjects,
         pageSize: 15,
-        emptyText: '該当するオブジェクトが見つかりません'
-      }
+        emptyText: "該当するオブジェクトが見つかりません",
+      },
     ]);
 
-    if (answer.object === '__DONE__') {
+    if (answer.object === "__DONE__") {
       if (selectedObjects.length < 1) {
-        console.log('\n⚠️  少なくとも1つのオブジェクトを選択してください');
+        console.log("\n⚠️  少なくとも1つのオブジェクトを選択してください");
         continue;
       }
       break;
@@ -161,9 +167,13 @@ async function cacheReferenceObjectLabels(conn, fields) {
   // 参照項目から参照先オブジェクトのユニークリストを作成
   const referenceObjects = new Set();
 
-  fields.forEach(field => {
-    if (field.type === "reference" && field.referenceTo && field.referenceTo.length > 0) {
-      field.referenceTo.forEach(objName => {
+  fields.forEach((field) => {
+    if (
+      field.type === "reference" &&
+      field.referenceTo &&
+      field.referenceTo.length > 0
+    ) {
+      field.referenceTo.forEach((objName) => {
         referenceObjects.add(objName);
       });
     }
@@ -173,7 +183,9 @@ async function cacheReferenceObjectLabels(conn, fields) {
     return;
   }
 
-  console.log(`📝 参照先オブジェクト ${referenceObjects.size}件のラベルを取得中...`);
+  console.log(
+    `📝 参照先オブジェクト ${referenceObjects.size}件のラベルを取得中...`
+  );
 
   // 各オブジェクトをDescribeしてラベルを取得
   for (const objName of referenceObjects) {
@@ -260,24 +272,37 @@ function getJapaneseFieldType(field) {
     return "地理位置情報";
   }
 
+  // テキストエリアの種類を判別
+  if (type === "textarea") {
+    // リッチテキストエリア
+    if (field.extraTypeInfo === "richtextarea") {
+      return "リッチテキストエリア";
+    }
+    // ロングテキストエリア (通常は255文字超え、またはextraTypeInfoで判別)
+    if (field.length > 255 && field.extraTypeInfo === "plaintextarea") {
+      return "ロングテキストエリア";
+    }
+    // 通常のテキストエリア (255文字以下)
+    return "テキストエリア";
+  }
+
   // 基本的なデータ型のマッピング
   const typeMap = {
-    "string": "テキスト",
-    "textarea": "テキストエリア",
-    "encryptedstring": "テキスト(暗号化)",
-    "boolean": "チェックボックス",
-    "picklist": "選択リスト",
-    "multipicklist": "選択リスト (複数選択)",
-    "date": "日付",
-    "datetime": "日付/時間",
-    "time": "時間",
-    "currency": "通貨",
-    "percent": "パーセント",
-    "phone": "電話",
-    "email": "メール",
-    "url": "URL",
-    "id": "id",
-    "address": "住所",
+    string: "テキスト",
+    encryptedstring: "テキスト(暗号化)",
+    boolean: "チェックボックス",
+    picklist: "選択リスト",
+    multipicklist: "選択リスト (複数選択)",
+    date: "日付",
+    datetime: "日付/時間",
+    time: "時間",
+    currency: "通貨",
+    percent: "パーセント",
+    phone: "電話",
+    email: "メール",
+    url: "URL",
+    id: "id",
+    address: "住所",
   };
 
   return typeMap[type] || type;
@@ -307,187 +332,187 @@ async function generateExcelForObject(conn, objectApiName, config) {
   workbook.creator = "SF Doc Generator";
   workbook.created = new Date();
 
-    // --- オブジェクト定義シート作成 ---
-    const objDefSheet = workbook.addWorksheet("オブジェクト定義");
-    createObjectDefinitionSheet(objDefSheet, describeResult);
+  // --- オブジェクト定義シート作成 ---
+  const objDefSheet = workbook.addWorksheet("オブジェクト定義");
+  createObjectDefinitionSheet(objDefSheet, describeResult);
 
-    // --- 項目定義シート作成 ---
-    const sheet = workbook.addWorksheet("項目定義");
+  // --- 項目定義シート作成 ---
+  const sheet = workbook.addWorksheet("項目定義");
 
-    // --- ヘッダー行作成 ---
-    const headers = config.columns.map((col) => col.header);
-    const headerRow = sheet.addRow(headers);
+  // --- ヘッダー行作成 ---
+  const headers = config.columns.map((col) => col.header);
+  const headerRow = sheet.addRow(headers);
 
-    // ヘッダーのスタイル（ヘッダ文字列がある箇所のみ塗りつぶし）
-    config.columns.forEach((_, idx) => {
-      const cell = headerRow.getCell(idx + 1);
-      cell.font = {
-        bold: true,
-        color: { argb: "FFFFFFFF" }, // 白文字
-        size: config.font?.headerSize || 11,
-        name: config.font?.name || "Meiryo UI",
-      };
-      cell.fill = {
-        type: "pattern",
-        pattern: "solid",
-        fgColor: { argb: "FF4472C4" }, // 青背景
-      };
-      cell.alignment = {
-        horizontal: "center",
-        vertical: "middle",
-      };
+  // ヘッダーのスタイル（ヘッダ文字列がある箇所のみ塗りつぶし）
+  config.columns.forEach((_, idx) => {
+    const cell = headerRow.getCell(idx + 1);
+    cell.font = {
+      bold: true,
+      color: { argb: "FFFFFFFF" }, // 白文字
+      size: config.font?.headerSize || 11,
+      name: config.font?.name || "Meiryo UI",
+    };
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF4472C4" }, // 青背景
+    };
+    cell.alignment = {
+      horizontal: "center",
+      vertical: "middle",
+    };
+  });
+  headerRow.height = 20;
+
+  // 列幅設定
+  config.columns.forEach((col, idx) => {
+    sheet.getColumn(idx + 1).width = col.width;
+  });
+
+  // --- データ行追加 ---
+  describeResult.fields.forEach((field, index) => {
+    const row = config.columns.map((col) => {
+      // 行番号の処理
+      if (col.source === "rowNumber") {
+        return index + 1;
+      }
+
+      // ラベルの処理（labelがない場合はnameを使用）
+      if (col.source === "label") {
+        return field.label || field.name || "";
+      }
+
+      // API参照名の処理
+      if (col.source === "fullName") {
+        return field.name || "";
+      }
+
+      // データ型の処理
+      if (col.source === "type") {
+        return getJapaneseFieldType(field);
+      }
+
+      // 項目タイプの判定
+      if (col.source === "fieldType") {
+        return field.custom ? "カスタム" : "標準";
+      }
+
+      // 選択リスト値の処理
+      if (col.source === "picklistValues") {
+        if (field.type === "picklist" || field.type === "multipicklist") {
+          if (field.picklistValues && field.picklistValues.length > 0) {
+            return field.picklistValues
+              .map((v) => {
+                const label = v.label || v.value;
+                const value = v.value;
+
+                // 表示形式に応じて出力を切り替え
+                switch (config.picklistFormat) {
+                  case "label":
+                    return label;
+                  case "fullName":
+                    return value;
+                  case "both":
+                  default:
+                    // labelとvalueが同じ場合は重複表示を避ける
+                    return label === value ? label : `${label}（${value}）`;
+                }
+              })
+              .join(";");
+          }
+        }
+        return "";
+      }
+
+      // 桁数の処理
+      if (col.source === "length") {
+        return field.length || field.precision || "";
+      }
+
+      let value = field[col.source];
+
+      // 特定のboolean項目は trueの場合のみ○を表示、それ以外は空白
+      if (
+        col.source === "required" ||
+        col.source === "externalId" ||
+        col.source === "trackHistory"
+      ) {
+        // nillableがfalseの場合は必須
+        if (col.source === "required") {
+          return field.nillable === false ? "○" : "";
+        }
+        if (value === true) {
+          return "○";
+        }
+        return "";
+      }
+
+      // その他のboolean を ○/- に変換
+      if (typeof value === "boolean") {
+        return value ? "○" : "-";
+      }
+
+      // undefined/null は空文字に
+      return value || "";
     });
-    headerRow.height = 20;
 
-    // 列幅設定
+    const addedRow = sheet.addRow(row);
+
+    // 各セルのスタイル設定
     config.columns.forEach((col, idx) => {
-      sheet.getColumn(idx + 1).width = col.width;
-    });
+      const cell = addedRow.getCell(idx + 1);
 
-    // --- データ行追加 ---
-    describeResult.fields.forEach((field, index) => {
-      const row = config.columns.map((col) => {
-        // 行番号の処理
-        if (col.source === "rowNumber") {
-          return index + 1;
-        }
+      // フォント設定
+      cell.font = {
+        name: config.font?.name || "Meiryo UI",
+        size: config.font?.size || 10,
+      };
 
-        // ラベルの処理（labelがない場合はnameを使用）
-        if (col.source === "label") {
-          return field.label || field.name || "";
-        }
-
-        // API参照名の処理
-        if (col.source === "fullName") {
-          return field.name || "";
-        }
-
-        // データ型の処理
-        if (col.source === "type") {
-          return getJapaneseFieldType(field);
-        }
-
-        // 項目タイプの判定
-        if (col.source === "fieldType") {
-          return field.custom ? "カスタム" : "標準";
-        }
-
-        // 選択リスト値の処理
-        if (col.source === "picklistValues") {
-          if (field.type === "picklist" || field.type === "multipicklist") {
-            if (field.picklistValues && field.picklistValues.length > 0) {
-              return field.picklistValues
-                .map((v) => {
-                  const label = v.label || v.value;
-                  const value = v.value;
-
-                  // 表示形式に応じて出力を切り替え
-                  switch (config.picklistFormat) {
-                    case "label":
-                      return label;
-                    case "fullName":
-                      return value;
-                    case "both":
-                    default:
-                      // labelとvalueが同じ場合は重複表示を避ける
-                      return label === value ? label : `${label}（${value}）`;
-                  }
-                })
-                .join(";");
-            }
-          }
-          return "";
-        }
-
-        // 桁数の処理
-        if (col.source === "length") {
-          return field.length || field.precision || "";
-        }
-
-        let value = field[col.source];
-
-        // 特定のboolean項目は trueの場合のみ○を表示、それ以外は空白
-        if (
-          col.source === "required" ||
-          col.source === "externalId" ||
-          col.source === "trackHistory"
-        ) {
-          // nillableがfalseの場合は必須
-          if (col.source === "required") {
-            return field.nillable === false ? "○" : "";
-          }
-          if (value === true) {
-            return "○";
-          }
-          return "";
-        }
-
-        // その他のboolean を ○/- に変換
-        if (typeof value === "boolean") {
-          return value ? "○" : "-";
-        }
-
-        // undefined/null は空文字に
-        return value || "";
-      });
-
-      const addedRow = sheet.addRow(row);
-
-      // 各セルのスタイル設定
-      config.columns.forEach((col, idx) => {
-        const cell = addedRow.getCell(idx + 1);
-
-        // フォント設定
-        cell.font = {
-          name: config.font?.name || "Meiryo UI",
-          size: config.font?.size || 10,
-        };
-
-        // 選択リスト値の列は折り返し表示
-        if (col.source === "picklistValues") {
-          cell.alignment = {
-            wrapText: true,
-            vertical: "top",
-          };
-        }
-
-        // 必須、外部ID、履歴管理の列は中央揃え
-        if (
-          col.source === "required" ||
-          col.source === "externalId" ||
-          col.source === "trackHistory"
-        ) {
-          cell.alignment = {
-            horizontal: "center",
-            vertical: "middle",
-          };
-        }
-      });
-    });
-
-    // 全データ行にボーダー追加（縦線・横線両方）
-    for (let i = 2; i <= sheet.rowCount; i++) {
-      const row = sheet.getRow(i);
-      for (let j = 1; j <= config.columns.length; j++) {
-        row.getCell(j).border = {
-          top: { style: "thin", color: { argb: "FFD9D9D9" } },
-          bottom: { style: "thin", color: { argb: "FFD9D9D9" } },
-          left: { style: "thin", color: { argb: "FFD9D9D9" } },
-          right: { style: "thin", color: { argb: "FFD9D9D9" } },
+      // 選択リスト値の列は折り返し表示
+      if (col.source === "picklistValues") {
+        cell.alignment = {
+          wrapText: true,
+          vertical: "top",
         };
       }
+
+      // 必須、外部ID、履歴管理の列は中央揃え
+      if (
+        col.source === "required" ||
+        col.source === "externalId" ||
+        col.source === "trackHistory"
+      ) {
+        cell.alignment = {
+          horizontal: "center",
+          vertical: "middle",
+        };
+      }
+    });
+  });
+
+  // 全データ行にボーダー追加（縦線・横線両方）
+  for (let i = 2; i <= sheet.rowCount; i++) {
+    const row = sheet.getRow(i);
+    for (let j = 1; j <= config.columns.length; j++) {
+      row.getCell(j).border = {
+        top: { style: "thin", color: { argb: "FFD9D9D9" } },
+        bottom: { style: "thin", color: { argb: "FFD9D9D9" } },
+        left: { style: "thin", color: { argb: "FFD9D9D9" } },
+        right: { style: "thin", color: { argb: "FFD9D9D9" } },
+      };
     }
+  }
 
-    // ヘッダー行と先頭2列を固定（スクロール時も見える）＆目盛り線を非表示
-    sheet.views = [
-      { state: "frozen", ySplit: 1, xSplit: 2, showGridLines: false },
-    ];
+  // ヘッダー行と先頭2列を固定（スクロール時も見える）＆目盛り線を非表示
+  sheet.views = [
+    { state: "frozen", ySplit: 1, xSplit: 2, showGridLines: false },
+  ];
 
-    // オートフィルター有効化
-    sheet.autoFilter = {
-      from: { row: 1, column: 1 },
-      to: { row: 1, column: config.columns.length },
-    };
+  // オートフィルター有効化
+  sheet.autoFilter = {
+    from: { row: 1, column: 1 },
+    to: { row: 1, column: config.columns.length },
+  };
 
   // ===== ファイル保存 =====
   const outputDir = path.join(__dirname, "output");
@@ -537,15 +562,22 @@ async function generateDoc() {
     // ===== 3. 対象オブジェクトの決定 =====
     let targetObjects = [];
 
-    if (config.target.objectApiNames && config.target.objectApiNames.length > 0) {
+    if (
+      config.target.objectApiNames &&
+      config.target.objectApiNames.length > 0
+    ) {
       // config.yamlで指定されている場合
       targetObjects = config.target.objectApiNames;
-      console.log(`✓ 対象オブジェクト（config.yamlから）: ${targetObjects.join(", ")}\n`);
+      console.log(
+        `✓ 対象オブジェクト（config.yamlから）: ${targetObjects.join(", ")}\n`
+      );
     } else {
       // 対話式で選択
       const allObjects = await getAllObjects(conn);
       targetObjects = await selectObjectsInteractively(allObjects);
-      console.log(`\n✓ ${targetObjects.length}個のオブジェクトを選択しました\n`);
+      console.log(
+        `\n✓ ${targetObjects.length}個のオブジェクトを選択しました\n`
+      );
     }
 
     // ===== 4. 各オブジェクトのExcel生成 =====
@@ -555,15 +587,18 @@ async function generateDoc() {
       // オブジェクトラベルキャッシュをリセット（オブジェクトごとに）
       objectLabelCache = {};
 
-      const outputPath = await generateExcelForObject(conn, objectApiName, config);
+      const outputPath = await generateExcelForObject(
+        conn,
+        objectApiName,
+        config
+      );
       outputPaths.push(outputPath);
     }
 
     // ===== 5. 完了メッセージ =====
     console.log("\n✨ すべての処理が完了しました！");
     console.log(`\n📊 生成されたファイル: ${outputPaths.length}件`);
-    outputPaths.forEach(p => console.log(`   - ${p}`));
-
+    outputPaths.forEach((p) => console.log(`   - ${p}`));
   } catch (error) {
     console.error("❌ エラーが発生しました:", error.message);
     console.error(error);
@@ -614,10 +649,15 @@ function createObjectDefinitionSheet(sheet, describeResult) {
       label: "フィード有効化",
       value: describeResult.feedEnabled ? "○" : "-",
     },
-    { label: "項目数", value: describeResult.fields ? describeResult.fields.length : 0 },
+    {
+      label: "項目数",
+      value: describeResult.fields ? describeResult.fields.length : 0,
+    },
     {
       label: "レコードタイプ数",
-      value: describeResult.recordTypeInfos ? describeResult.recordTypeInfos.length : 0,
+      value: describeResult.recordTypeInfos
+        ? describeResult.recordTypeInfos.length
+        : 0,
     },
   ];
 
