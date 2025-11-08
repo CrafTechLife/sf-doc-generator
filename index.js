@@ -8,6 +8,134 @@ const path = require("path"); // パス操作
 // 環境変数を.envファイルから読み込む
 require("dotenv").config();
 
+// オブジェクトラベルのキャッシュ（実行中にメモリ保持）
+let objectLabelCache = {};
+
+/**
+ * 参照先オブジェクトのラベルを取得してキャッシュする
+ * @param {Object} conn - Salesforce接続オブジェクト
+ * @param {Array} fields - フィールド配列
+ */
+async function cacheReferenceObjectLabels(conn, fields) {
+  // 参照項目から参照先オブジェクトのユニークリストを作成
+  const referenceObjects = new Set();
+
+  fields.forEach(field => {
+    if (field.type === "reference" && field.referenceTo && field.referenceTo.length > 0) {
+      field.referenceTo.forEach(objName => {
+        referenceObjects.add(objName);
+      });
+    }
+  });
+
+  if (referenceObjects.size === 0) {
+    return;
+  }
+
+  console.log(`📝 参照先オブジェクト ${referenceObjects.size}件のラベルを取得中...`);
+
+  // 各オブジェクトをDescribeしてラベルを取得
+  for (const objName of referenceObjects) {
+    try {
+      const objDescribe = await conn.sobject(objName).describe();
+      objectLabelCache[objName] = objDescribe.label;
+    } catch (error) {
+      // エラーが発生した場合はAPI名をそのまま使用
+      console.warn(`⚠️  ${objName} のDescribeに失敗: ${error.message}`);
+      objectLabelCache[objName] = objName;
+    }
+  }
+
+  console.log(`✓ 参照先オブジェクトラベル取得完了\n`);
+}
+
+/**
+ * データ型を日本語に変換
+ * @param {Object} field - フィールド情報
+ * @returns {string} 日本語のデータ型
+ */
+function getJapaneseFieldType(field) {
+  const type = field.type;
+  const calculated = field.calculated;
+  const calculatedFormula = field.calculatedFormula;
+
+  // 積み上げ集計（calculatedがtrueで、calculatedFormulaがnull）
+  if (calculated && !calculatedFormula) {
+    return "積み上げ集計";
+  }
+
+  // 数式項目（calculatedがtrueで、calculatedFormulaがある）
+  if (calculated && calculatedFormula) {
+    switch (type) {
+      case "boolean":
+        return "数式 (チェックボックス)";
+      case "currency":
+        return "数式 (通貨)";
+      case "date":
+        return "数式 (日付)";
+      case "datetime":
+        return "数式 (日付/時間)";
+      case "double":
+      case "int":
+        return "数式 (数値)";
+      case "percent":
+        return "数式 (パーセント)";
+      case "string":
+      case "textarea":
+        return "数式 (テキスト)";
+      case "time":
+        return "数式 (時間)";
+      default:
+        return "数式";
+    }
+  }
+
+  // 参照関係
+  if (type === "reference") {
+    if (field.referenceTo && field.referenceTo.length > 0) {
+      const refObject = field.referenceTo[0];
+      // キャッシュからラベルを取得、なければAPI名を使用
+      const refLabel = objectLabelCache[refObject] || refObject;
+      return `参照関係 (${refLabel})`;
+    }
+    return "参照関係";
+  }
+
+  // 数値型の詳細表示
+  if (type === "double" || type === "int") {
+    const precision = field.precision || 18;
+    const scale = field.scale || 0;
+    return `数値 (${scale}, ${precision})`;
+  }
+
+  // 地理位置情報
+  if (type === "location") {
+    return "地理位置情報";
+  }
+
+  // 基本的なデータ型のマッピング
+  const typeMap = {
+    "string": "テキスト",
+    "textarea": "テキストエリア",
+    "encryptedstring": "テキスト(暗号化)",
+    "boolean": "チェックボックス",
+    "picklist": "選択リスト",
+    "multipicklist": "選択リスト (複数選択)",
+    "date": "日付",
+    "datetime": "日付/時間",
+    "time": "時間",
+    "currency": "通貨",
+    "percent": "パーセント",
+    "phone": "電話",
+    "email": "メール",
+    "url": "URL",
+    "id": "id",
+    "address": "住所",
+  };
+
+  return typeMap[type] || type;
+}
+
 /**
  * メイン処理
  * async/await を使って非同期処理を同期的に書く
@@ -48,6 +176,9 @@ async function generateDoc() {
     );
 
     console.log(`✓ 項目数: ${describeResult.fields.length}件\n`);
+
+    // 参照先オブジェクトのラベルをキャッシュ
+    await cacheReferenceObjectLabels(conn, describeResult.fields);
 
     // ===== 4. Excel生成 =====
     console.log("📊 Excel生成中...");
@@ -110,6 +241,11 @@ async function generateDoc() {
         // API参照名の処理
         if (col.source === "fullName") {
           return field.name || "";
+        }
+
+        // データ型の処理
+        if (col.source === "type") {
+          return getJapaneseFieldType(field);
         }
 
         // 項目タイプの判定
