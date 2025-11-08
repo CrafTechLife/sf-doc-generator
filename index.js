@@ -244,6 +244,11 @@ function getJapaneseFieldType(field) {
 
   // 数値型の詳細表示
   if (type === "double" || type === "int") {
+    // soapTypeがxsd:intの場合は整数型として扱う
+    if (field.soapType === "xsd:int") {
+      return "数値 (0, 0)";
+    }
+
     const precision = field.precision || 18;
     const scale = field.scale || 0;
     const integerDigits = precision - scale;
