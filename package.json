@@ -20,6 +20,7 @@
         "dotenv": "^16.3.1",
         "exceljs": "^4.4.0",
         "inquirer": "^8.2.7",
+        "inquirer-autocomplete-prompt": "^2.0.1",
         "js-yaml": "^4.1.0",
         "jsforce": "^2.0.0-beta.29"
     },
