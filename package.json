@@ -2,10 +2,10 @@
     "name": "sf-doc-generator",
     "version": "1.0.0",
     "description": "Salesforce設計書自動生成ツール",
-    "main": "index.js",
+    "main": "src/index.js",
     "scripts": {
-        "start": "node index.js",
-        "dev": "node index.js",
+        "start": "node src/index.js",
+        "dev": "node src/index.js",
         "lint": "eslint .",
         "format": "prettier --write ."
     },
